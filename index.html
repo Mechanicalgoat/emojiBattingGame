@@ -12,7 +12,7 @@
             <h1>⚾ 絵文字バッティングゲーム ⚾</h1>
             <div class="score-board">
                 <span>残り: <span id="balls-left">10</span>球</span>
-                <span>ホームラン: <span id="home-run-count">0</span>本</span>
+                <span>ホームラン: <span id="home-run-count">0</span>/3本</span>
             </div>
         </div>
         
@@ -22,9 +22,10 @@
                 <div id="ball" class="ball">⚾</div>
             </div>
             <div id="strike-zone" class="strike-zone">
-                <div class="zone-text">ここをクリックでバットを振る</div>
+                <div class="zone-text">ここでバットを振る</div>
             </div>
-            <div class="batter">🏏</div>
+            <div class="batter" id="batter">🏏</div>
+            <div class="home-plate">⬜</div>
         </div>
         
         <div class="game-controls">
