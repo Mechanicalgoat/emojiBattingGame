@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
         batter.style.top = `${relativeY - 20}px`;
         batter.style.position = 'absolute';
         batter.style.transform = 'none'; // 既存の変換をリセット
+        batter.style.bottom = 'auto';
+        batter.style.right = 'auto';
     }
 
     // ゲーム開始関数
@@ -96,16 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
         ball.style.top = '70px';
         ball.style.visibility = 'visible';
         ball.classList.remove('home-run');
+        ball.classList.remove('ball-through');
 
         // ストライクゾーンの位置を取得
         const strikeZoneRect = strikeZone.getBoundingClientRect();
-        const strikeZoneCenterX = (strikeZoneRect.left + strikeZoneRect.right) / 2 - gameFieldRect.left;
-        const strikeZoneCenterY = (strikeZoneRect.top + strikeZoneRect.bottom) / 2 - gameFieldRect.top;
         
-        // ボールのアニメーション - 常にストライクゾーンの中心に向かって投げる
+        // ストライクゾーン内のランダムな位置を計算
+        const randomOffsetX = Math.random() * strikeZoneRect.width - strikeZoneRect.width / 2;
+        const randomOffsetY = Math.random() * strikeZoneRect.height - strikeZoneRect.height / 2;
+        
+        const targetX = (strikeZoneRect.left + strikeZoneRect.width / 2) - gameFieldRect.left + randomOffsetX;
+        const targetY = (strikeZoneRect.top + strikeZoneRect.height / 2) - gameFieldRect.top + randomOffsetY;
+        
+        // ボールのアニメーション - ストライクゾーン内のランダムな位置に向かって投げる
         setTimeout(() => {
-            ball.style.left = `${strikeZoneCenterX}px`;
-            ball.style.top = `${strikeZoneCenterY}px`;
+            ball.style.left = `${targetX}px`;
+            ball.style.top = `${targetY}px`;
             canSwing = true;
 
             // スイングしなかった場合 (見逃し)
@@ -116,10 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateUI();
                     resultMessageElement.textContent = '見逃し！';
                     
+                    // ボールを通過させるアニメーション
+                    ball.classList.add('ball-through');
+                    ball.style.top = `${gameFieldRect.height + 50}px`;
+                    
                     // 次の投球
-                    setTimeout(throwBall, 1000);
+                    setTimeout(throwBall, 800);
                 }
-            }, 1500); // ボールが到達するまでの時間
+            }, 1000); // ボールが到達するまでの時間
         }, 500);
     }
 
@@ -150,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         // 近い距離にある場合はヒット成功
-        if (distance < 50) {
+        if (distance < 60) { // 判定範囲を少し広げる
             // ホームラン！
             homeRunCount++;
             const homeRunDistance = calculateHomeRunDistance();
@@ -159,12 +171,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // 空振り
             resultMessageElement.textContent = '空振り！';
+            
+            // ボールを通過させるアニメーション
+            const gameFieldRect = document.querySelector('.game-field').getBoundingClientRect();
+            ball.classList.add('ball-through');
+            ball.style.top = `${gameFieldRect.height + 50}px`;
         }
 
         updateUI();
 
         // 次の投球
-        setTimeout(throwBall, 1500);
+        setTimeout(throwBall, 1000);
     }
 
     // ホームランの距離を計算
