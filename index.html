@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>絵文字バッティングゲーム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>⚾ 絵文字バッティングゲーム ⚾</h1>
+            <div class="score-board">
+                <span>残り: <span id="balls-left">10</span>球</span>
+                <span>ホームラン: <span id="home-run-count">0</span>本</span>
+            </div>
+        </div>
+        
+        <div class="game-field">
+            <div class="pitcher">🧍</div>
+            <div class="ball-container">
+                <div id="ball" class="ball">⚾</div>
+            </div>
+            <div class="batter">🏏</div>
+            <div id="strike-zone" class="strike-zone"></div>
+        </div>
+        
+        <div class="game-controls">
+            <button id="start-button">ゲームスタート</button>
+            <div id="result-message" class="result-message"></div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
