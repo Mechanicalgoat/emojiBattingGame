@@ -74,6 +74,14 @@ body {
     bottom: 50px;
     right: 100px;
     font-size: 40px;
+    cursor: pointer;
+    transition: transform 0.1s ease-out;
+    z-index: 10;
+}
+
+.batter.swing {
+    transform: rotate(45deg);
+    transition: transform 0.1s ease-out;
 }
 
 .strike-zone {
