@@ -15,29 +15,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let homeRunCount = 0;
     let isGameActive = false;
     let canSwing = false;
-    let isBatFollowing = false;
 
     // スタートボタンのイベントリスナー
     startButton.addEventListener('click', startGame);
 
     // ストライクゾーンのマウスイベント
-    strikeZone.addEventListener('mouseenter', () => {
-        if (isGameActive) {
-            isBatFollowing = true;
-        }
-    });
-
-    strikeZone.addEventListener('mouseleave', () => {
-        if (isGameActive) {
-            isBatFollowing = false;
-            // ストライクゾーンから出たときはバットを初期位置に戻す
-            resetBatterPosition();
-        }
-    });
-
     strikeZone.addEventListener('mousemove', (e) => {
-        if (isGameActive && isBatFollowing) {
-            updateBatterPosition(e);
+        if (isGameActive) {
+            // マウス位置にバットを移動
+            const rect = strikeZone.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            batter.style.left = `${e.clientX - gameField.getBoundingClientRect().left}px`;
+            batter.style.top = `${e.clientY - gameField.getBoundingClientRect().top}px`;
+            batter.style.transform = 'translate(-50%, -50%)';
         }
     });
 
@@ -46,28 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
             swing(e);
         }
     });
-
-    // バットの位置をリセットする関数
-    function resetBatterPosition() {
-        batter.style.position = 'absolute';
-        batter.style.bottom = '60px';
-        batter.style.left = '50%';
-        batter.style.top = 'auto';
-        batter.style.transform = 'translateX(-50%)';
-    }
-
-    // バットの位置を更新する関数
-    function updateBatterPosition(e) {
-        const rect = gameField.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        batter.style.position = 'absolute';
-        batter.style.left = `${x}px`;
-        batter.style.top = `${y}px`;
-        batter.style.transform = 'translate(-50%, -50%)';
-        batter.style.bottom = 'auto';
-    }
 
     // ゲーム開始関数
     function startGame() {
@@ -83,8 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
         startButton.disabled = true;
         resultMessageElement.textContent = '';
 
-        // バットの初期位置をリセット
-        resetBatterPosition();
+        // バットの初期位置
+        batter.style.position = 'absolute';
+        batter.style.bottom = '120px';
+        batter.style.left = '50%';
+        batter.style.transform = 'translateX(-50%)';
 
         // 最初の投球を開始
         throwBall();
@@ -98,17 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ボールを初期位置に設定（ピッチャーポジション）
-        const pitcherPos = pitcher.getBoundingClientRect();
-        const fieldPos = gameField.getBoundingClientRect();
-        
-        // ボールを常にピッチャーの位置に初期化
         ball.style.left = '50%';
-        ball.style.top = '50px';
-        ball.style.transform = 'translate(-50%, -50%) scale(0.6)';
+        ball.style.top = '70px';
+        ball.style.transform = 'translate(-50%, -50%)';
         ball.style.visibility = 'visible';
-        ball.style.transition = 'none'; // トランジションをいったんリセット
+        ball.style.transition = 'none';
         
-        // 既存のクラスを削除
+        // クラスをリセット
         ball.classList.remove('home-run');
         ball.classList.remove('ball-through');
         
@@ -118,22 +87,25 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             pitcher.textContent = '🧍';
             
-            // ストライクゾーンの位置を取得
-            const strikeZoneRect = strikeZone.getBoundingClientRect();
+            // ストライクゾーン内のランダムな位置を計算
+            const zoneRect = strikeZone.getBoundingClientRect();
+            const fieldRect = gameField.getBoundingClientRect();
             
-            // ランダムなターゲット位置を計算（ストライクゾーン内）
-            const randomX = Math.random() * (strikeZoneRect.width * 0.8) - (strikeZoneRect.width * 0.4);
-            const randomY = Math.random() * (strikeZoneRect.height * 0.8) - (strikeZoneRect.height * 0.4);
+            // ターゲット位置を計算（ストライクゾーンの中心から少しランダムにずらす）
+            const zoneCenterX = zoneRect.left + zoneRect.width / 2 - fieldRect.left;
+            const zoneCenterY = zoneRect.top + zoneRect.height / 2 - fieldRect.top;
             
-            const targetLeft = '50%';
-            const targetTop = `${strikeZoneRect.top - fieldPos.top + strikeZoneRect.height/2 + randomY}px`;
+            const randomOffsetX = (Math.random() - 0.5) * zoneRect.width * 0.8;
+            const randomOffsetY = (Math.random() - 0.5) * zoneRect.height * 0.8;
             
-            // ボールのトランジションを設定して投球
-            requestAnimationFrame(() => {
-                ball.style.transition = 'all 0.8s linear'; // 直線的な動き
-                ball.style.transform = 'translate(-50%, -50%) scale(1)'; // 大きくなる
-                ball.style.left = targetLeft;
-                ball.style.top = targetTop;
+            const targetX = zoneCenterX + randomOffsetX;
+            const targetY = zoneCenterY + randomOffsetY;
+            
+            // ボールを投げる
+            setTimeout(() => {
+                ball.style.transition = 'left 0.8s linear, top 0.8s linear';
+                ball.style.left = `${targetX}px`;
+                ball.style.top = `${targetY}px`;
                 
                 canSwing = true;
                 
@@ -147,14 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // ボールを通過させる
                         ball.style.transition = 'top 0.4s ease-in';
-                        ball.style.top = `${fieldPos.height + 50}px`;
+                        ball.style.top = `${fieldRect.height + 50}px`;
                         
                         // 次の投球
                         setTimeout(throwBall, 1000);
                     }
                 }, 800);
-            });
-        }, 500);
+            }, 200);
+        }, 300);
     }
 
     // スイング関数
@@ -175,18 +147,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ボールとの衝突判定
         const ballRect = ball.getBoundingClientRect();
-        const clickX = e.clientX;
-        const clickY = e.clientY;
+        const batterRect = batter.getBoundingClientRect();
         
         const ballCenterX = ballRect.left + ballRect.width/2;
         const ballCenterY = ballRect.top + ballRect.height/2;
         
+        const batterCenterX = batterRect.left + batterRect.width/2;
+        const batterCenterY = batterRect.top + batterRect.height/2;
+        
         const distance = Math.sqrt(
-            Math.pow(ballCenterX - clickX, 2) + 
-            Math.pow(ballCenterY - clickY, 2)
+            Math.pow(ballCenterX - batterCenterX, 2) + 
+            Math.pow(ballCenterY - batterCenterY, 2)
         );
 
-        if (distance < 60) { // ヒット判定を少し緩める
+        if (distance < 70) { // より広いヒット判定
             // ホームラン！
             homeRunCount++;
             const homeRunDistance = calculateHomeRunDistance();
@@ -210,12 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ヒットエフェクト生成
     function createHitEffect(x, y) {
-        const gameFieldRect = gameField.getBoundingClientRect();
+        const rect = gameField.getBoundingClientRect();
         const effect = document.createElement('div');
         effect.className = 'hit-effect';
         effect.textContent = '💥';
-        effect.style.left = `${x - gameFieldRect.left}px`;
-        effect.style.top = `${y - gameFieldRect.top}px`;
+        effect.style.left = `${x - rect.left}px`;
+        effect.style.top = `${y - rect.top}px`;
         
         gameField.appendChild(effect);
         
