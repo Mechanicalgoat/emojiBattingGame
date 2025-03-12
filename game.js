@@ -15,16 +15,49 @@ document.addEventListener('DOMContentLoaded', () => {
     let homeRunCount = 0;
     let isGameActive = false;
     let canSwing = false;
+    let isBatFollowing = false; // バットがマウスに追従するかどうか
 
     // スタートボタンのイベントリスナー
     startButton.addEventListener('click', startGame);
 
-    // ストライクゾーンのクリックイベント
+    // ストライクゾーンのマウスイベント
+    strikeZone.addEventListener('mouseenter', () => {
+        if (isGameActive) {
+            isBatFollowing = true;
+        }
+    });
+
+    strikeZone.addEventListener('mouseleave', () => {
+        if (isGameActive) {
+            isBatFollowing = false;
+        }
+    });
+
+    strikeZone.addEventListener('mousemove', (e) => {
+        if (isGameActive && isBatFollowing) {
+            // マウス位置にバットを追従させる
+            updateBatterPosition(e);
+        }
+    });
+
     strikeZone.addEventListener('click', (e) => {
         if (isGameActive && canSwing) {
             swing(e);
         }
     });
+
+    // バットの位置を更新する関数
+    function updateBatterPosition(e) {
+        const rect = gameField.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        batter.style.left = `${x}px`;
+        batter.style.top = `${y}px`;
+        batter.style.transform = 'translate(-50%, -50%)';
+        batter.style.bottom = 'auto';
+        batter.style.right = 'auto';
+    }
 
     // ゲーム開始関数
     function startGame() {
@@ -51,15 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // ボールの位置をリセット - 常に投手の位置から
-        const pitcherRect = pitcher.getBoundingClientRect();
-        const gameFieldRect = gameField.getBoundingClientRect();
-        
-        const pitcherCenterX = pitcherRect.left + pitcherRect.width / 2 - gameFieldRect.left;
-        const pitcherCenterY = pitcherRect.top + pitcherRect.height / 2 - gameFieldRect.top;
-        
-        ball.style.left = `${pitcherCenterX}px`;
-        ball.style.top = `${pitcherCenterY}px`;
+        // ボールの初期位置を設定 (ピッチャーの位置、奥から手前へ)
+        ball.style.left = '50%';
+        ball.style.top = '50px';
+        ball.style.transform = 'translate(-50%, -50%) scale(0.5)'; // 遠くにいるように小さく表示
         ball.style.visibility = 'visible';
         ball.classList.remove('home-run');
         ball.classList.remove('ball-through');
@@ -72,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ストライクゾーンの位置を取得
         const strikeZoneRect = strikeZone.getBoundingClientRect();
+        const gameFieldRect = gameField.getBoundingClientRect();
         
         // ストライクゾーン内のランダムな位置を計算
         const randomOffsetX = (Math.random() - 0.5) * strikeZoneRect.width * 0.7;
@@ -80,10 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetX = (strikeZoneRect.left + strikeZoneRect.width / 2) - gameFieldRect.left + randomOffsetX;
         const targetY = (strikeZoneRect.top + strikeZoneRect.height / 2) - gameFieldRect.top + randomOffsetY;
         
-        // ボールのアニメーション - 常に正面から直線的に投げる
+        // ボールを投げるアニメーション - 奥から手前へ、サイズも大きくなる
         setTimeout(() => {
+            ball.style.transition = 'all 0.8s cubic-bezier(0.2, 0, 0.8, 1)';
             ball.style.left = `${targetX}px`;
             ball.style.top = `${targetY}px`;
+            ball.style.transform = 'translate(-50%, -50%) scale(1)'; // 近づくにつれて大きくなる
             canSwing = true;
 
             // スイングしなかった場合 (見逃し)
