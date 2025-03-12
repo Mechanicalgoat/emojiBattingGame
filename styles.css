@@ -1,46 +1,20 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f0f8ff;
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-}
-
-.game-container {
-    width: 100%;
-    max-width: 600px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.game-header {
-    text-align: center;
-    margin-bottom: 20px;
-    width: 100%;
-}
-
-.game-header h1 {
+.ball {
+    position: absolute;
     font-size: 24px;
-    margin-bottom: 10px;
+    transform: translate(-50%, -50%) scale(0.6);
+    transition: all 0.8s linear;
+    visibility: hidden;
+    z-index: 5;
+    pointer-events: none;
 }
 
-.score-board {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    font-size: 18px;
-    font-weight: bold;
+.pitcher {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+    z-index: 4;
 }
 
 .game-field {
@@ -51,187 +25,4 @@ body {
     border-radius: 5px;
     margin-bottom: 20px;
     overflow: hidden;
-    perspective: 1000px; /* 3D効果のための遠近法 */
-}
-
-.pitcher {
-    position: absolute;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%) scale(0.6); /* 遠くにいるように小さく表示 */
-    font-size: 40px;
-    z-index: 5;
-}
-
-.ball {
-    position: absolute;
-    font-size: 24px;
-    transform: translate(-50%, -50%) scale(0.5); /* 初期は小さく表示 */
-    transition: transform 0.8s cubic-bezier(0.2, 0, 0.8, 1), left 0.8s cubic-bezier(0.2, 0, 0.8, 1), top 0.8s cubic-bezier(0.2, 0, 0.8, 1);
-    visibility: hidden;
-    z-index: 5;
-    pointer-events: none;
-}
-
-.batter {
-    position: absolute;
-    bottom: 60px;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 40px;
-    z-index: 10;
-    user-select: none;
-    pointer-events: none;
-    transition: transform 0.2s ease-out;
-}
-
-.batter.swing {
-    transform: translate(-50%, -50%) rotate(60deg);
-}
-
-.strike-zone {
-    position: absolute;
-    width: 220px;
-    height: 160px;
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 2px dashed rgba(255, 255, 255, 0.7);
-    border-radius: 5px;
-    cursor: crosshair;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.home-plate {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%) rotate(45deg);
-    font-size: 24px;
-    z-index: 1;
-    opacity: 0.7;
-}
-
-/* フィールドの装飾 - 野球場の感じを出す */
-.game-field::before {
-    content: '';
-    position: absolute;
-    top: 60%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background-color: rgba(255, 255, 255, 0.5);
-    z-index: 1;
-}
-
-.game-field::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background-color: #a67c52;
-    z-index: 1;
-}
-
-.zone-text {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    text-align: center;
-    pointer-events: none;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.game-controls {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-#start-button {
-    padding: 10px 25px;
-    font-size: 16px;
-    background-color: #4caf50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    font-weight: bold;
-}
-
-#start-button:hover {
-    background-color: #45a049;
-    transform: scale(1.05);
-}
-
-#start-button:active {
-    transform: scale(0.98);
-}
-
-.result-message {
-    margin-top: 15px;
-    font-size: 20px;
-    font-weight: bold;
-    min-height: 30px;
-    color: #333;
-    text-align: center;
-}
-
-/* ホームランアニメーション */
-@keyframes homeRunAnim {
-    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    100% { transform: translate(200px, -200px) scale(0.1); opacity: 0; }
-}
-
-.home-run {
-    animation: homeRunAnim 1s forwards;
-}
-
-/* ボール通過アニメーション */
-.ball-through {
-    transition: top 0.4s ease-in !important;
-}
-
-/* ヒットエフェクト */
-.hit-effect {
-    position: absolute;
-    font-size: 30px;
-    z-index: 20;
-    animation: hitEffectAnim 0.5s forwards;
-    pointer-events: none;
-}
-
-@keyframes hitEffectAnim {
-    0% { transform: scale(0.5); opacity: 1; }
-    100% { transform: scale(2); opacity: 0; }
-}
-
-/* ピッチングモーション */
-@keyframes pitchingMotion {
-    0% { transform: translateX(-50%) scale(0.6) rotate(0deg); }
-    50% { transform: translateX(-50%) scale(0.6) rotate(-20deg); }
-    100% { transform: translateX(-50%) scale(0.6) rotate(0deg); }
-}
-
-.pitching {
-    animation: pitchingMotion 0.3s forwards;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 500px) {
-    .game-field {
-        height: 350px;
-    }
-    
-    .strike-zone {
-        width: 180px;
-        height: 140px;
-    }
 }
