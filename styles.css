@@ -66,7 +66,7 @@ body {
     position: absolute;
     font-size: 24px;
     transform: translate(-50%, -50%);
-    transition: all 0.6s cubic-bezier(0.45, 0, 0.55, 1);
+    transition: all 0.5s linear;
     visibility: hidden;
     z-index: 5;
     pointer-events: none;
@@ -81,7 +81,7 @@ body {
     z-index: 10;
     user-select: none;
     pointer-events: none;
-    transition: transform 0.15s ease-out, left 0.1s linear, top 0.1s linear;
+    transition: transform 0.2s ease-out;
 }
 
 .batter.swing {
@@ -163,22 +163,11 @@ body {
 /* ホームランアニメーション */
 @keyframes homeRunAnim {
     0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    25% { transform: translate(0px, -100px) scale(0.8); opacity: 0.8; }
-    100% { transform: translate(300px, -250px) scale(0.2); opacity: 0; }
+    100% { transform: translate(200px, -200px) scale(0.1); opacity: 0; }
 }
 
 .home-run {
     animation: homeRunAnim 1s forwards;
-}
-
-/* ファールボールアニメーション */
-@keyframes foulBallAnim {
-    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    100% { transform: translate(-200px, -150px) scale(0.2); opacity: 0; }
-}
-
-.foul-ball {
-    animation: foulBallAnim 0.8s forwards;
 }
 
 /* ボール通過アニメーション */
@@ -200,16 +189,15 @@ body {
     100% { transform: scale(2); opacity: 0; }
 }
 
-/* ゲームフィールドの装飾 */
-.game-field::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background-color: #a67c52;
-    z-index: 1;
+/* ピッチングモーション */
+@keyframes pitchingMotion {
+    0% { transform: translateX(-50%) rotate(0deg); }
+    50% { transform: translateX(-50%) rotate(-20deg); }
+    100% { transform: translateX(-50%) rotate(0deg); }
+}
+
+.pitching {
+    animation: pitchingMotion 0.3s forwards;
 }
 
 /* レスポンシブ対応 */
