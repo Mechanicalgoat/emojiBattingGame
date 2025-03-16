@@ -61,7 +61,6 @@
                     <div id="ball-landing" class="ball-landing"></div>
                 </div>
                 <p>飛距離: <span id="overview-distance">0</span>m</p>
-                <button class="close-overview">閉じる</button>
             </div>
         </div>
         
@@ -148,7 +147,7 @@
                 const y = e.clientY - rect.top;
                 
                 batter.style.left = `${e.clientX - gameField.getBoundingClientRect().left}px`;
-                batter.style.bottom = '60px'; // ストライクゾーンと同じ高さに
+                batter.style.bottom = '50px'; // ストライクゾーンと同じ高さに
                 batter.style.transform = 'translateX(-50%)';
             }
         });
@@ -168,13 +167,27 @@
             }
         });
         
-        // 俯瞰図を閉じるボタン
-        if (closeOverviewButton) {
-            closeOverviewButton.addEventListener('click', () => {
-                fieldOverview.style.display = 'none';
-                // 次の投球へ
-                setTimeout(throwBall, 500);
-            });
+        // フィールド俯瞰図を自動で閉じるように設定
+        function showFieldOverview(distance, angle, landingX, landingY) {
+            if (fieldOverview && ballLanding && overviewDistance) {
+                fieldOverview.style.display = 'flex';
+                
+                // ランディング地点の表示
+                ballLanding.style.left = `${landingX}px`;
+                ballLanding.style.top = `${landingY}px`;
+                
+                overviewDistance.textContent = distance;
+                
+                // 3秒後に自動で閉じる
+                setTimeout(() => {
+                    fieldOverview.style.display = 'none';
+                    // 次の投球へ
+                    setTimeout(throwBall, 500);
+                }, 3000);
+            } else {
+                // 俯瞰図がない場合は次の投球へ
+                setTimeout(throwBall, 1500);
+            }
         }
 
         // ゲーム開始関数
@@ -213,26 +226,6 @@
             }
         }
 
-        // アニメーションを簡略化してパフォーマンス向上
-        function simpleAnimation(from, to, duration, onUpdate, onComplete) {
-            const startTime = performance.now();
-            
-            function animate(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                onUpdate(from + (to - from) * progress);
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else if (onComplete) {
-                    onComplete();
-                }
-            }
-            
-            requestAnimationFrame(animate);
-        }
-        
         // 投球関数を簡略化
         function throwBall() {
             if (ballsLeft <= 0) {
@@ -276,34 +269,36 @@
                 // 難易度に応じたピッチャー絵文字を使用
                 pitcher.textContent = settings.pitcherEmoji;
                 
-                // ボールを投げる - シンプルな直線運動
-                ball.style.transition = `all ${settings.ballSpeed/1000}s ease-in`;
-                ball.style.left = `${targetX}px`;
-                ball.style.bottom = `${targetY}px`;
-                ball.style.transform = 'translate(-50%, -50%) scale(1)';
-                
-                canSwing = true;
-                
-                // スイング待機時間
+                // 軽量化: シンプルな直線移動でボールを投げる
                 setTimeout(() => {
-                    if (canSwing) {
-                        // 見逃した場合
-                        canSwing = false;
-                        ballsLeft--;
-                        updateUI();
-                        if (resultMessageElement) resultMessageElement.textContent = '見逃し！';
-                        
-                        // スコアボード更新
-                        updateScoreboard('BALL!');
-                        
-                        // ボールを通過させる
-                        ball.style.transition = 'all 0.4s ease-in';
-                        ball.style.bottom = '-50px';
-                        
-                        // 次の投球
-                        setTimeout(throwBall, 1000);
-                    }
-                }, settings.hitWindow);
+                    // 一度にアニメーションを適用
+                    ball.style.transition = `all ${settings.ballSpeed/1000}s ease-out`;
+                    ball.style.left = `${targetX}px`;
+                    ball.style.bottom = `${targetY}px`;
+                    
+                    canSwing = true;
+                    
+                    // スイング待機時間
+                    setTimeout(() => {
+                        if (canSwing) {
+                            // 見逃した場合
+                            canSwing = false;
+                            ballsLeft--;
+                            updateUI();
+                            
+                            // スコアボード更新
+                            updateScoreboard('BALL!');
+                            
+                            // ボールを通過させる
+                            ball.style.transition = 'all 0.4s ease-in';
+                            ball.style.bottom = '-50px';
+                            
+                            // 次の投球
+                            setTimeout(throwBall, 1000);
+                        }
+                    }, settings.hitWindow);
+                }, 300);
+            }, 400);
             }, 300);
         }
 
@@ -377,7 +372,7 @@
             updateUI();
         }
         
-        // ホームランアニメーション
+        // ホームランアニメーション - シンプル化して軽量化
         function animateHomeRun(distance) {
             // 軌道に応じた角度と距離を計算
             const angle = Math.random() * 60 - 30; // -30度から30度のランダムな角度
@@ -386,56 +381,23 @@
             // ボールの飛距離に応じた位置を計算
             const normalizedDistance = Math.min(distance / 150, 1); // 150mを最大とする
             
-            // 簡略化したアニメーション
-            let progress = 0;
-            const animationInterval = setInterval(() => {
-                progress += 0.05;
+            // アニメーションを簡素化して処理を軽く
+            ball.style.transition = 'all 1.5s ease-out';
+            ball.style.left = `${fieldWidth/2 + normalizedDistance * 200 * Math.sin(angleRad)}px`;
+            ball.style.bottom = `${250}px`;
+            ball.style.transform = 'translate(-50%, -50%) scale(0.2)';
+            
+            // 1.5秒後にホームラン表示
+            setTimeout(() => {
+                ball.style.visibility = 'hidden';
                 
-                if (progress >= 1) {
-                    clearInterval(animationInterval);
-                    
-                    // アニメーション完了時
-                    ball.style.visibility = 'hidden';
-                    
-                    // 俯瞰図を表示（存在する場合）
-                    if (fieldOverview && ballLanding && overviewDistance) {
-                        fieldOverview.style.display = 'flex';
-                        
-                        // ランディング地点の表示（角度と距離から計算）
-                        const landingX = 150 + Math.sin(angleRad) * normalizedDistance * 120;
-                        const landingY = 50 + normalizedDistance * 200;
-                        
-                        ballLanding.style.left = `${landingX}px`;
-                        ballLanding.style.top = `${landingY}px`;
-                        
-                        overviewDistance.textContent = distance;
-                    } else {
-                        // 俯瞰図がない場合は次の投球へ
-                        setTimeout(throwBall, 1500);
-                    }
-                    return;
-                }
+                // ランディング地点の計算
+                const landingX = 150 + Math.sin(angleRad) * normalizedDistance * 120;
+                const landingY = 50 + normalizedDistance * 200;
                 
-                // 放物線の式: y = x - x²
-                const x = progress;
-                const y = x - Math.pow(x/1.5, 2);
-                
-                // x成分の計算（角度を考慮）
-                const xOffset = normalizedDistance * 300 * Math.sin(angleRad) * progress;
-                const xPos = fieldWidth/2 + xOffset;
-                
-                // y成分の計算（放物線）
-                const yPos = 50 + y * 300;
-                
-                // スケール（遠近感）
-                const scale = Math.max(0.1, 1 - progress * 0.9);
-                
-                // ボールの位置を更新
-                ball.style.transition = 'none';
-                ball.style.left = `${xPos}px`;
-                ball.style.bottom = `${yPos}px`;
-                ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            }, 30);
+                // 俯瞰図表示（3秒で自動的に閉じる）
+                showFieldOverview(distance, angle, landingX, landingY);
+            }, 1500);
         }
 
         // ホームラン距離の計算
