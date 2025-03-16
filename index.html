@@ -42,18 +42,6 @@
             <div class="batter-box"></div>
             <div class="batter" id="batter">🏏</div>
             
-            <!-- バッターの情報表示 -->
-            <div class="player-info player-info-left">
-                <div class="player-name">P プレイヤー様</div>
-                <div class="player-stats">盛岡 左打 左投 二塁手</div>
-            </div>
-            
-            <!-- ピッチャーの情報表示 -->
-            <div class="player-info player-info-right">
-                <div class="player-name">P コンピュータ</div>
-                <div class="player-stats">球速: 145km/h</div>
-            </div>
-            
             <!-- ボールと打撃ゾーン -->
             <div id="ball" class="ball">⚾</div>
             <div id="strike-zone" class="strike-zone">
@@ -160,7 +148,7 @@
                 const y = e.clientY - rect.top;
                 
                 batter.style.left = `${e.clientX - gameField.getBoundingClientRect().left}px`;
-                batter.style.bottom = '110px'; // 高さは固定
+                batter.style.bottom = '50px'; // 高さを低く設定
                 batter.style.transform = 'translateX(-50%)';
             }
         });
@@ -201,7 +189,7 @@
 
             // バットの初期位置
             batter.style.position = 'absolute';
-            batter.style.bottom = '110px';
+            batter.style.bottom = '50px';
             batter.style.left = '50%';
             batter.style.transform = 'translateX(-50%)';
 
@@ -216,7 +204,27 @@
             }
         }
 
-        // 投球関数
+        // アニメーションを簡略化してパフォーマンス向上
+        function simpleAnimation(from, to, duration, onUpdate, onComplete) {
+            const startTime = performance.now();
+            
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                onUpdate(from + (to - from) * progress);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else if (onComplete) {
+                    onComplete();
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // 投球関数を簡略化
         function throwBall() {
             if (ballsLeft <= 0) {
                 endGame();
@@ -231,10 +239,6 @@
             ball.style.transition = 'none';
             ball.style.zIndex = '15';
             
-            // トラッキング用の初期位置
-            currentBallPosition = { x: fieldWidth/2, y: 250, z: 0 };
-            ballTrajectory = [{ ...currentBallPosition }];
-            
             // クラスをリセット
             ball.classList.remove('home-run');
             ball.classList.remove('ball-through');
@@ -245,72 +249,52 @@
             // ピッチャーのモーション
             pitcher.textContent = '🤾';
             
+            // ストライクゾーン内のランダムな位置を計算
+            const zoneRect = strikeZone.getBoundingClientRect();
+            const fieldRect = gameField.getBoundingClientRect();
+            
+            // ターゲット位置を計算
+            const zoneCenterX = zoneRect.left + zoneRect.width / 2 - fieldRect.left;
+            const zoneCenterY = fieldRect.bottom - zoneRect.top - zoneRect.height / 2;
+            
+            const randomOffsetX = (Math.random() - 0.5) * zoneRect.width * 0.8;
+            const randomOffsetY = (Math.random() - 0.5) * zoneRect.height * 0.8;
+            
+            const targetX = zoneCenterX + randomOffsetX;
+            const targetY = zoneCenterY + randomOffsetY;
+            
             setTimeout(() => {
                 // 難易度に応じたピッチャー絵文字を使用
                 pitcher.textContent = settings.pitcherEmoji;
                 
-                // ストライクゾーン内のランダムな位置を計算
-                const zoneRect = strikeZone.getBoundingClientRect();
-                const fieldRect = gameField.getBoundingClientRect();
+                // ボールを投げる - シンプルな直線運動
+                ball.style.transition = `all ${settings.ballSpeed/1000}s ease-in`;
+                ball.style.left = `${targetX}px`;
+                ball.style.bottom = `${targetY}px`;
+                ball.style.transform = 'translate(-50%, -50%) scale(1)';
                 
-                // ターゲット位置を計算（ストライクゾーンの中心から少しランダムにずらす）
-                const zoneCenterX = zoneRect.left + zoneRect.width / 2 - fieldRect.left;
-                const zoneCenterY = fieldRect.bottom - zoneRect.top - zoneRect.height / 2;
+                canSwing = true;
                 
-                const randomOffsetX = (Math.random() - 0.5) * zoneRect.width * 0.8;
-                const randomOffsetY = (Math.random() - 0.5) * zoneRect.height * 0.8;
-                
-                const targetX = zoneCenterX + randomOffsetX;
-                const targetY = zoneCenterY + randomOffsetY;
-                
-                // 3D的な投球アニメーションのための中間点
-                const midpointY = (parseFloat(ball.style.bottom) + targetY) / 2;
-                const midpointZ = 30; // ボールが最も手前に来る位置
-                
-                // ボールを投げる
+                // スイング待機時間
                 setTimeout(() => {
-                    // ステップ1: 中間点へ（ボールが近づいてくる）
-                    ball.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.6, 1)';
-                    ball.style.left = `${targetX}px`;
-                    ball.style.bottom = `${midpointY}px`;
-                    ball.style.transform = 'translate(-50%, -50%) scale(1.2)';
-                    
-                    // トラッキング中間点
-                    setTimeout(() => {
-                        currentBallPosition = { x: targetX, y: midpointY, z: midpointZ };
-                        ballTrajectory.push({ ...currentBallPosition });
+                    if (canSwing) {
+                        // 見逃した場合
+                        canSwing = false;
+                        ballsLeft--;
+                        updateUI();
+                        if (resultMessageElement) resultMessageElement.textContent = '見逃し！';
                         
-                        // ステップ2: 目標点へ（ストライクゾーン）
-                        ball.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.6, 1)';
-                        ball.style.bottom = `${targetY}px`;
-                        ball.style.transform = 'translate(-50%, -50%) scale(1)';
+                        // スコアボード更新
+                        updateScoreboard('BALL!');
                         
-                        canSwing = true;
+                        // ボールを通過させる
+                        ball.style.transition = 'all 0.4s ease-in';
+                        ball.style.bottom = '-50px';
                         
-                        // スイングしなかった場合（見逃し）
-                        setTimeout(() => {
-                            if (canSwing) {
-                                canSwing = false;
-                                ballsLeft--;
-                                updateUI();
-                                if (resultMessageElement) resultMessageElement.textContent = '見逃し！';
-                                
-                                // スコアボード更新
-                                updateScoreboard('BALL!');
-                                
-                                // ボールを通過させる
-                                ball.style.transition = 'all 0.4s ease-in';
-                                ball.style.bottom = '-50px';
-                                
-                                currentBallPosition = { x: targetX, y: -50, z: -30 };
-                                ballTrajectory.push({ ...currentBallPosition });
-                                
-                                // 次の投球
-                                setTimeout(throwBall, 1000);
-                            }
-                        }, settings.hitWindow * 1.5); // 難易度に応じた待機時間
-                    }, settings.ballSpeed * 0.25);
-                }, 200);
+                        // 次の投球
+                        setTimeout(throwBall, 1000);
+                    }
+                }, settings.hitWindow);
             }, 300);
         }
 
@@ -346,7 +330,7 @@
             );
 
             // 難易度に基づくヒット判定の距離
-            const hitDistance = 70 * settings.hitWindow / 400;
+            const hitDistance = 100 * settings.hitWindow / 400;
 
             if (distance < hitDistance) { // 難易度に応じたヒット判定
                 // ホームラン！
@@ -393,35 +377,14 @@
             // ボールの飛距離に応じた位置を計算
             const normalizedDistance = Math.min(distance / 150, 1); // 150mを最大とする
             
-            // 初速と角度からの放物線軌道
-            const animateStep = (progress) => {
-                // 放物線の式: y = x - x²
-                const x = progress;
-                const y = x - Math.pow(x/1.5, 2);
+            // 簡略化したアニメーション
+            let progress = 0;
+            const animationInterval = setInterval(() => {
+                progress += 0.05;
                 
-                // x成分の計算（角度を考慮）
-                const xOffset = normalizedDistance * 300 * Math.sin(angleRad) * progress;
-                const xPos = fieldWidth/2 + xOffset;
-                
-                // y成分の計算（放物線）
-                const yPos = 110 + y * 300;
-                
-                // スケール（遠近感）
-                const scale = Math.max(0.1, 1 - progress * 0.9);
-                
-                // ボールの位置を更新
-                ball.style.transition = 'none';
-                ball.style.left = `${xPos}px`;
-                ball.style.bottom = `${yPos}px`;
-                ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
-                
-                // 現在のボール位置を記録（トラッキング用）
-                currentBallPosition = { x: xPos, y: yPos, z: -(progress * 100) };
-                ballTrajectory.push({ ...currentBallPosition });
-                
-                if (progress < 1) {
-                    requestAnimationFrame(() => animateStep(progress + 0.04));
-                } else {
+                if (progress >= 1) {
+                    clearInterval(animationInterval);
+                    
                     // アニメーション完了時
                     ball.style.visibility = 'hidden';
                     
@@ -441,11 +404,29 @@
                         // 俯瞰図がない場合は次の投球へ
                         setTimeout(throwBall, 1500);
                     }
+                    return;
                 }
-            };
-            
-            // アニメーション開始
-            animateStep(0);
+                
+                // 放物線の式: y = x - x²
+                const x = progress;
+                const y = x - Math.pow(x/1.5, 2);
+                
+                // x成分の計算（角度を考慮）
+                const xOffset = normalizedDistance * 300 * Math.sin(angleRad) * progress;
+                const xPos = fieldWidth/2 + xOffset;
+                
+                // y成分の計算（放物線）
+                const yPos = 50 + y * 300;
+                
+                // スケール（遠近感）
+                const scale = Math.max(0.1, 1 - progress * 0.9);
+                
+                // ボールの位置を更新
+                ball.style.transition = 'none';
+                ball.style.left = `${xPos}px`;
+                ball.style.bottom = `${yPos}px`;
+                ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            }, 30);
         }
 
         // ホームラン距離の計算
