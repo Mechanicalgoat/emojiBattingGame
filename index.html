@@ -17,15 +17,44 @@
         </div>
         
         <div class="game-field">
+            <!-- 3D要素のコンテナ -->
+            <div class="field-ground"></div>
+            <div class="stands"></div>
+            <div class="infield"></div>
+            <div class="pitcher-mound"></div>
+            
+            <!-- ベース -->
+            <div class="home-plate">⬜</div>
+            <div class="first-base">⬜</div>
+            <div class="second-base">⬜</div>
+            <div class="third-base">⬜</div>
+            
+            <!-- ピッチャーとバッター -->
             <div class="pitcher">🧍</div>
-            <div class="ball-container">
-                <div id="ball" class="ball">⚾</div>
-            </div>
+            <div class="batter-box"></div>
+            <div class="batter" id="batter">🏏</div>
+            
+            <!-- ボールと打撃ゾーン -->
+            <div id="ball" class="ball">⚾</div>
             <div id="strike-zone" class="strike-zone">
                 <div class="zone-text">ここでバットを振る</div>
             </div>
-            <div class="batter" id="batter">🏏</div>
-            <div class="home-plate">⬜</div>
+            
+            <!-- 飛距離メーター -->
+            <div class="distance-meter">
+                <span id="distance-value">0</span>m
+            </div>
+            
+            <!-- フィールド俯瞰図 (ホームラン時に表示) -->
+            <div class="field-overview">
+                <h2>ホームラン！</h2>
+                <div class="field-map">
+                    <div class="field-map-home">⬜</div>
+                    <div id="ball-landing" class="ball-landing"></div>
+                </div>
+                <p>飛距離: <span id="overview-distance">0</span>m</p>
+                <button class="close-overview">閉じる</button>
+            </div>
         </div>
         
         <div class="game-controls">
@@ -34,6 +63,8 @@
         </div>
     </div>
 
+    <script src="difficulty.js"></script>
     <script src="game.js"></script>
+    <script src="homerun-view.js"></script>
 </body>
 </html>
