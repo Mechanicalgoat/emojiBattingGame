@@ -13,9 +13,15 @@ const gameMenuManager = {
     
     // 選択されたピッチャー
     selectedPitcher: 'regular',
+
+    // オリジナルのHTML構造を保存
+    originalHTML: '',
     
     // メニューを初期化
     init() {
+        // オリジナルのHTML構造を保存
+        this.originalHTML = document.querySelector('.game-container').innerHTML;
+        
         this.createMainMenu();
         this.state = 'main';
     },
@@ -139,12 +145,32 @@ const gameMenuManager = {
     // ゲームを開始
     startGame() {
         this.state = 'game';
-        // 選択されたピッチャーの情報を取得
-        const pitcher = this.pitchers.find(p => p.id === this.selectedPitcher);
         
-        // 既存のゲーム開始関数を呼び出す
-        // ここは実際のゲームコードと統合する際に修正
-        initGame(pitcher);
+        // 元のゲーム画面のHTMLを復元
+        const gameContainer = document.querySelector('.game-container');
+        gameContainer.innerHTML = this.originalHTML;
+        
+        // 難易度を設定（選択されたピッチャーに基づく）
+        const pitcher = this.pitchers.find(p => p.id === this.selectedPitcher);
+        if (pitcher && window.applyDifficulty) {
+            window.applyDifficulty(pitcher.difficulty);
+        }
+        
+        // ピッチャーの絵文字を更新
+        if (pitcher) {
+            const pitcherElement = document.querySelector('.pitcher');
+            if (pitcherElement) {
+                pitcherElement.textContent = pitcher.emoji;
+            }
+        }
+        
+        // ゲーム開始ボタンを自動クリック
+        setTimeout(() => {
+            const startButton = document.getElementById('start-button');
+            if (startButton) {
+                startButton.click();
+            }
+        }, 100);
     }
 };
 
@@ -276,18 +302,65 @@ function addMenuStyles() {
     document.head.appendChild(styleElement);
 }
 
+// グローバルに難易度設定関数を公開
+window.applyDifficulty = function(difficulty) {
+    if (window.currentDifficulty !== undefined && window.difficultySettings !== undefined) {
+        window.currentDifficulty = difficulty;
+        const settings = window.difficultySettings[difficulty];
+
+        // ストライクゾーンのサイズを変更
+        const strikeZone = document.getElementById('strike-zone');
+        if (strikeZone) {
+            strikeZone.style.width = `${250 * settings.strikeZoneSize}px`;
+            strikeZone.style.height = `${180 * settings.strikeZoneSize}px`;
+        }
+
+        // ピッチャーの絵文字を変更
+        const pitcher = document.querySelector('.pitcher');
+        if (pitcher) {
+            pitcher.textContent = settings.pitcherEmoji;
+        }
+    }
+};
+
 // ページ読み込み時にメニューを初期化する
 document.addEventListener('DOMContentLoaded', () => {
-    addMenuStyles();
-    gameMenuManager.init();
-});
-
-// 実際のゲームを初期化する関数 (game.jsと統合)
-function initGame(pitcher) {
-    // 既存のゲームHTML構造を再構築
-    // ここで実際のゲーム画面を表示し、選択されたピッチャーの情報を使用
-    console.log(`${pitcher.name}(${pitcher.emoji})を選択してゲームを開始`);
+    // difficulty.jsが読み込まれているか確認し、グローバル変数を設定
+    if (typeof difficultySettings === 'undefined') {
+        window.difficultySettings = {
+            easy: {
+                ballSpeed: 2000,
+                strikeZoneSize: 1.2,
+                hitWindow: 600,
+                requiredHomeRuns: 2,
+                pitcherEmoji: '🧍'
+            },
+            normal: {
+                ballSpeed: 1500,
+                strikeZoneSize: 1.0,
+                hitWindow: 400,
+                requiredHomeRuns: 3,
+                pitcherEmoji: '🧍‍♂️'
+            },
+            hard: {
+                ballSpeed: 1000,
+                strikeZoneSize: 0.8,
+                hitWindow: 200,
+                requiredHomeRuns: 5,
+                pitcherEmoji: '🏃‍♂️'
+            }
+        };
+    }
     
-    // 実際のゲームコードと統合する際はここでHTMLを生成して
-    // game.jsの初期化関数を呼び出す
-}
+    if (typeof currentDifficulty === 'undefined') {
+        window.currentDifficulty = 'normal';
+    }
+    
+    // スタイルの追加
+    addMenuStyles();
+    
+    // メニューの初期化は少し遅らせる（他のスクリプトの読み込みを待つ）
+    setTimeout(() => {
+        gameMenuManager.init();
+    }, 100);
+});
