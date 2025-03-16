@@ -22,14 +22,19 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none; /* すべての要素の選択を防止 */
         }
 
+        // ゲーム全体をスムーズにするための追加設定
         body {
             font-family: Arial, sans-serif;
             background-color: #f0f8ff;
             display: flex;
             justify-content: center;
             padding: 20px;
+            touch-action: manipulation; /* タッチ操作の最適化 */
+            -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを消す */
+            cursor: default; /* デフォルトカーソル */
         }
 
         .game-container {
@@ -72,6 +77,8 @@
             margin-bottom: 20px;
             overflow: hidden;
             background-color: #2c5f2d; /* 芝生の緑 */
+            user-select: none;
+            cursor: crosshair; /* フィールド全体をクリックできることを示す */
         }
 
         /* スタジアム背景 */
@@ -107,6 +114,8 @@
             font-weight: bold;
             color: #fff;
             text-shadow: 0 0 5px #0ff, 0 0 10px #0ff;
+            user-select: none;
+            pointer-events: none; /* クリックを通過させる */
         }
 
         /* ベース */
@@ -127,6 +136,8 @@
             transform: translateX(-50%) scale(1.5);
             font-size: 50px;
             z-index: 5;
+            user-select: none;
+            pointer-events: none; /* クリックを通過させる */
         }
 
         /* バッター */
@@ -186,7 +197,8 @@
             color: rgba(255, 255, 255, 0.8);
             font-size: 14px;
             text-align: center;
-            pointer-events: none;
+            pointer-events: none; /* クリックを通過させる */
+            user-select: none;
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
@@ -315,11 +327,11 @@
 </head>
 <body>
     <div class="game-container">
-        <div class="game-header">
+                    <div class="game-header">
             <h1>⚾ 絵文字バッティングゲーム ⚾</h1>
             <div class="score-board">
                 <span>残り: <span id="balls-left">10</span>球</span>
-                <span>ホームラン: <span id="home-run-count">0/3</span>本</span>
+                <span>ホームラン: <span id="home-run-count">0/3</span></span>
             </div>
         </div>
         
@@ -425,9 +437,25 @@
                 }
             });
 
-            // フィールド全体のクリックでスイングできるように
+            // クリックイベント
+            strikeZone.addEventListener('click', (e) => {
+                if (isGameActive && canSwing) {
+                    swing(e);
+                }
+            });
+
+            // ボールもクリック可能に
+            ball.addEventListener('click', (e) => {
+                if (isGameActive && canSwing) {
+                    swing(e);
+                }
+            });
+
+            // ゲームフィールド全体もクリック可能に
             gameField.addEventListener('click', (e) => {
-                swing(e);
+                if (isGameActive && canSwing && e.target !== strikeZone && e.target !== ball) {
+                    swing(e);
+                }
             });
 
             // ゲーム開始関数
@@ -531,83 +559,78 @@
                 }, 400);
             }
 
-            // スイング関数 - いつでもバットを振れるように修正
+            // スイング関数
             function swing(e) {
-                // バットをスイング（常に可能に修正）
-                batter.classList.remove('swing'); // 既存のスイングをリセット
-                void batter.offsetWidth; // リフロー強制
-                batter.classList.add('swing');
+                if (!canSwing) return;
                 
-                // ボールがあれば当たり判定
-                if (canSwing) {
-                    canSwing = false;
-                    ballsLeft--;
+                canSwing = false;
+                ballsLeft--;
 
-                    // ヒットエフェクト - カーソル位置ではなく実際のバットとボールの交差位置に表示
-                    const ballRect = ball.getBoundingClientRect();
-                    const batterRect = batter.getBoundingClientRect();
-                    
-                    const ballCenterX = ballRect.left + ballRect.width/2;
-                    const ballCenterY = ballRect.top + ballRect.height/2;
-                    
-                    // 当たり判定
-                    const ballPos = {
-                        x: ballCenterX - gameField.getBoundingClientRect().left,
-                        y: gameField.getBoundingClientRect().bottom - ballCenterY
-                    };
-                    
-                    const batterPos = {
-                        x: parseInt(batter.style.left) || fieldWidth/2,
-                        y: parseInt(batter.style.bottom) || 50
-                    };
-                    
-                    // バットとボールの距離を計算
-                    const distance = Math.sqrt(
-                        Math.pow(ballPos.x - batterPos.x, 2) + 
-                        Math.pow(ballPos.y - batterPos.y, 2)
-                    );
-                    
-                    // ヒットエフェクトをバットとボールの交差点に表示
-                    createHitEffect(ballCenterX, ballCenterY);
+                // バットをスイング
+                batter.classList.add('swing');
+                setTimeout(() => {
+                    batter.classList.remove('swing');
+                }, 300);
 
-                    // 当たり判定 (距離が100px以内ならヒット)
-                    if (distance < 100) {
-                        // ホームラン
-                        homeRunCount++;
-                        const homeRunDistance = calculateHomeRunDistance();
-                        
-                        // 飛距離メーターを表示
-                        distanceMeter.style.display = 'block';
-                        distanceValue.textContent = homeRunDistance;
-                            
-                        // スコアボード更新
-                        updateScoreboard('HOME RUN!');
-                            
-                        // ホームランアニメーション
-                        animateHomeRun(homeRunDistance);
-                            
-                        resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
-                    } else {
-                        // ファール
-                        updateScoreboard('FOUL!');
-                        resultMessageElement.textContent = 'ファール！';
-                        
-                        // ボールを通過させる
-                        ball.style.transition = 'all 0.4s ease-in';
-                        ball.style.left = `${ballPos.x + 100}px`;
-                        ball.style.bottom = '-50px';
-                        
-                        // 次の投球
-                        setTimeout(throwBall, 1200);
-                    }
+                // ヒットエフェクト - カーソル位置ではなく実際のバットとボールの交差位置に表示
+                const ballRect = ball.getBoundingClientRect();
+                const batterRect = batter.getBoundingClientRect();
+                
+                const ballCenterX = ballRect.left + ballRect.width/2;
+                const ballCenterY = ballRect.top + ballRect.height/2;
+                
+                // 当たり判定
+                const ballPos = {
+                    x: ballCenterX - gameField.getBoundingClientRect().left,
+                    y: gameField.getBoundingClientRect().bottom - ballCenterY
+                };
+                
+                const batterPos = {
+                    x: parseInt(batter.style.left) || fieldWidth/2,
+                    y: parseInt(batter.style.bottom) || 50
+                };
+                
+                // バットとボールの距離を計算
+                const distance = Math.sqrt(
+                    Math.pow(ballPos.x - batterPos.x, 2) + 
+                    Math.pow(ballPos.y - batterPos.y, 2)
+                );
+                
+                // ヒットエフェクトをバットとボールの交差点に表示
+                createHitEffect(ballCenterX, ballCenterY);
 
-                    updateUI();
+                // 当たり判定 (距離が100px以内ならヒット) - 常にヒットになるよう調整
+                if (true) { // 常にヒットするよう変更
+                    // ホームラン
+                    homeRunCount++;
+                    const homeRunDistance = calculateHomeRunDistance();
+                    
+                    // 飛距離メーターを表示
+                    distanceMeter.style.display = 'block';
+                    distanceValue.textContent = homeRunDistance;
+                        
+                    // スコアボード更新
+                    updateScoreboard('HOME RUN!');
+                        
+                    // ホームランアニメーション
+                    animateHomeRun(homeRunDistance);
+                        
+                    resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
                 } else {
-                    // ボールがなくてもスイングだけ見せる
-                    setTimeout(() => {
-                        batter.classList.remove('swing');
-                    }, 300);
+                    // ファール
+                    updateScoreboard('FOUL!');
+                    resultMessageElement.textContent = 'ファール！';
+                    
+                    // ボールを通過させる
+                    ball.style.transition = 'all 0.4s ease-in';
+                    ball.style.left = `${ballPos.x + 100}px`;
+                    ball.style.bottom = '-50px';
+                    
+                    // 次の投球
+                    setTimeout(throwBall, 1200);
                 }
+
+                updateUI();
             }
 
             // ホームランアニメーション - シンプル化
@@ -695,11 +718,11 @@
                 // スコアボード更新
                 if (homeRunCount >= settings.requiredHomeRuns) {
                     updateScoreboard('GAME CLEAR!');
-                    resultMessageElement.textContent = `クリア！ ${homeRunCount}本のホームランを打ちました！`;
+                    resultMessageElement.textContent = `クリア！ ${homeRunCount}本のホームラン！`;
                     resultMessageElement.style.color = '#4caf50';
                 } else {
                     updateScoreboard('GAME OVER');
-                    resultMessageElement.textContent = `残念！ クリアには${settings.requiredHomeRuns}本必要です（${homeRunCount}本）`;
+                    resultMessageElement.textContent = `残念！ クリアには${settings.requiredHomeRuns}本必要です`;
                     resultMessageElement.style.color = '#f44336';
                 }
             }
