@@ -1,4 +1,28 @@
-// ゲームフィールド全体のマウス移動を追跡
+// バットとボールの距離を視覚的に表示するヘルパー関数
+            function updateDebugDisplay(x, y, distance) {
+                // デバッグモードがオフならなにもしない
+                if (!window.debugMode) return;
+                
+                let debugDisplay = document.getElementById('debug-display');
+                if (!debugDisplay) {
+                    debugDisplay = document.createElement('div');
+                    debugDisplay.id = 'debug-display';
+                    debugDisplay.style.position = 'absolute';
+                    debugDisplay.style.top = '10px';
+                    debugDisplay.style.left = '10px';
+                    debugDisplay.style.background = 'rgba(0,0,0,0.7)';
+                    debugDisplay.style.color = 'white';
+                    debugDisplay.style.padding = '5px';
+                    debugDisplay.style.borderRadius = '5px';
+                    debugDisplay.style.zIndex = '100';
+                    gameField.appendChild(debugDisplay);
+                }
+                
+                debugDisplay.textContent = `X: ${x.toFixed(0)}, Y: ${y.toFixed(0)}, Distance: ${distance.toFixed(0)}px`;
+            }
+            
+            // デバッグモード（必要に応じてコンソールから window.debugMode = true; で有効化）
+            window.debugMode = false;            // ゲームフィールド全体のマウス移動を追跡
             gameField.addEventListener('mousemove', (e) => {
                 if (isGameActive) {
                     // マウス位置にバットを移動（全フィールドで動作）
@@ -150,6 +174,7 @@
             z-index: 10;
             user-select: none;
             pointer-events: none;
+            transition: left 0.1s ease-out; /* バットの横移動をスムーズに */
         }
 
         .batter.swing {
@@ -564,30 +589,35 @@
                 if (!canSwing) return;
                 
                 canSwing = false;
-                ballsLeft--;
 
-                // バットをスイング
+                // バットをスイング - クリック位置に瞬時に移動してからスイング
+                const fieldRect = gameField.getBoundingClientRect();
+                const clickX = e.clientX - fieldRect.left;
+                
+                // クリック位置にバットを移動
+                batter.style.left = `${clickX}px`;
+                
+                // スイングアニメーション
                 batter.classList.add('swing');
                 setTimeout(() => {
                     batter.classList.remove('swing');
                 }, 300);
 
-                // ヒットエフェクト - カーソル位置ではなく実際のバットとボールの交差位置に表示
+                // ボールの位置取得
                 const ballRect = ball.getBoundingClientRect();
-                const batterRect = batter.getBoundingClientRect();
-                
                 const ballCenterX = ballRect.left + ballRect.width/2;
                 const ballCenterY = ballRect.top + ballRect.height/2;
                 
-                // 当たり判定
+                // ボールの位置（ゲームフィールド内の相対座標）
                 const ballPos = {
-                    x: ballCenterX - gameField.getBoundingClientRect().left,
-                    y: gameField.getBoundingClientRect().bottom - ballCenterY
+                    x: ballCenterX - fieldRect.left,
+                    y: fieldRect.bottom - ballCenterY
                 };
                 
+                // バットの位置（クリック位置）
                 const batterPos = {
-                    x: parseInt(batter.style.left) || fieldWidth/2,
-                    y: parseInt(batter.style.bottom) || 50
+                    x: clickX,
+                    y: 50
                 };
                 
                 // バットとボールの距離を計算
@@ -596,13 +626,14 @@
                     Math.pow(ballPos.y - batterPos.y, 2)
                 );
                 
-                // ヒットエフェクトをバットとボールの交差点に表示
+                // ヒットエフェクトをボールの位置に表示
                 createHitEffect(ballCenterX, ballCenterY);
-
-                // 当たり判定 (距離が100px以内ならヒット) - 常にヒットになるよう調整
-                if (true) { // 常にヒットするよう変更
+                
+                // 当たり判定（距離が50px以内ならヒット）
+                if (distance < 50) {
                     // ホームラン
                     homeRunCount++;
+                    ballsLeft--;
                     const homeRunDistance = calculateHomeRunDistance();
                     
                     // 飛距離メーターを表示
@@ -618,6 +649,7 @@
                     resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
                 } else {
                     // ファール
+                    ballsLeft--;
                     updateScoreboard('FOUL!');
                     resultMessageElement.textContent = 'ファール！';
                     
@@ -671,12 +703,12 @@
                 
                 overviewDistance.textContent = distance;
                 
-                // 3秒後に自動で閉じる
+                // 1.5秒後に自動で閉じる（短縮）
                 setTimeout(() => {
                     fieldOverview.style.display = 'none';
                     // 次の投球へ
-                    setTimeout(throwBall, 500);
-                }, 3000);
+                    setTimeout(throwBall, 300);
+                }, 1500);
             }
 
             // ホームラン距離の計算
