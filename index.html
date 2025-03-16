@@ -139,34 +139,31 @@
         // スタートボタンのイベントリスナー
         startButton.addEventListener('click', startGame);
 
-        // バットの位置をストライクゾーンの範囲内に収める関数
-        function adjustBatPosition(clientX) {
-            const rect = strikeZone.getBoundingClientRect();
-            const fieldRect = gameField.getBoundingClientRect();
-            
-            // バットの位置を設定 - ストライクゾーンの範囲に制限
-            batter.style.left = '50%'; // 常に中央に固定
-            batter.style.bottom = '50px';
-            batter.style.transform = 'translateX(-50%)';
-        }
-        
-        // ゲーム全体のマウス移動イベント - バットをマウスに追従させない
-        gameField.addEventListener('mousemove', (e) => {
-            if (isGameActive) {
-                // あえてマウス位置に追従させない
-                // adjustBatPosition(e.clientX);
-            }
-        });
-
+        // ストライクゾーンのマウスイベント
         strikeZone.addEventListener('mousemove', (e) => {
             if (isGameActive) {
-                // あえてマウス位置に追従させない
-                // adjustBatPosition(e.clientX);
+                // マウス位置にバットを移動
+                const rect = strikeZone.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                batter.style.left = `${e.clientX - gameField.getBoundingClientRect().left}px`;
+                batter.style.bottom = '60px'; // ストライクゾーンと同じ高さに
+                batter.style.transform = 'translateX(-50%)';
             }
         });
 
+        // ストライクゾーンもクリックできるように再追加
         strikeZone.addEventListener('click', (e) => {
             if (isGameActive && canSwing) {
+                swing(e);
+            }
+        });
+        
+        // ゲームフィールド全体をクリック可能に
+        gameField.addEventListener('click', (e) => {
+            // ボールやストライクゾーンでない場所をクリックした場合
+            if (isGameActive && canSwing && e.target !== ball && e.target !== strikeZone) {
                 swing(e);
             }
         });
@@ -201,7 +198,7 @@
 
             // バットの初期位置
             batter.style.position = 'absolute';
-            batter.style.bottom = '50px';
+            batter.style.bottom = '60px';
             batter.style.left = '50%';
             batter.style.transform = 'translateX(-50%)';
 
