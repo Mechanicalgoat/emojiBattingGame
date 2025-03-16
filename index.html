@@ -139,17 +139,29 @@
         // スタートボタンのイベントリスナー
         startButton.addEventListener('click', startGame);
 
-        // ストライクゾーンのマウスイベント
+        // バットの位置をストライクゾーンの範囲内に収める関数
+        function adjustBatPosition(clientX) {
+            const rect = strikeZone.getBoundingClientRect();
+            const fieldRect = gameField.getBoundingClientRect();
+            
+            // バットの位置を設定 - ストライクゾーンの範囲に制限
+            batter.style.left = '50%'; // 常に中央に固定
+            batter.style.bottom = '50px';
+            batter.style.transform = 'translateX(-50%)';
+        }
+        
+        // ゲーム全体のマウス移動イベント - バットをマウスに追従させない
+        gameField.addEventListener('mousemove', (e) => {
+            if (isGameActive) {
+                // あえてマウス位置に追従させない
+                // adjustBatPosition(e.clientX);
+            }
+        });
+
         strikeZone.addEventListener('mousemove', (e) => {
             if (isGameActive) {
-                // マウス位置にバットを移動
-                const rect = strikeZone.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                batter.style.left = `${e.clientX - gameField.getBoundingClientRect().left}px`;
-                batter.style.bottom = '50px'; // 高さを低く設定
-                batter.style.transform = 'translateX(-50%)';
+                // あえてマウス位置に追従させない
+                // adjustBatPosition(e.clientX);
             }
         });
 
@@ -330,7 +342,7 @@
             );
 
             // 難易度に基づくヒット判定の距離
-            const hitDistance = 100 * settings.hitWindow / 400;
+            const hitDistance = 200;
 
             if (distance < hitDistance) { // 難易度に応じたヒット判定
                 // ホームラン！
@@ -338,18 +350,18 @@
                 const homeRunDistance = calculateHomeRunDistance();
                 
                 // 飛距離メーターを表示
-                if (distanceMeter) {
-                    distanceMeter.style.display = 'block';
-                    distanceValue.textContent = homeRunDistance;
-                }
+            if (distanceMeter) {
+                distanceMeter.style.display = 'block';
+                distanceValue.textContent = homeRunDistance;
+            }
                 
-                // スコアボード更新
-                updateScoreboard('HOME RUN!');
+            // スコアボード更新
+            updateScoreboard('HOME RUN!');
                 
-                // ホームラン軌道のアニメーション
-                animateHomeRun(homeRunDistance);
+            // ホームラン軌道のアニメーション
+            animateHomeRun(homeRunDistance);
                 
-                if (resultMessageElement) resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
+            if (resultMessageElement) resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
             } else {
                 // 空振り
                 if (resultMessageElement) resultMessageElement.textContent = '空振り！';
