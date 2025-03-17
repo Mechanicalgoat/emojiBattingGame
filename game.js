@@ -21,7 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ballSpeed: 2500, // ボールの速さ (ミリ秒) - 大きいほど遅い
         strikeZoneSize: 1.0, // ストライクゾーンの相対サイズ
         hitWindow: 600, // スイングのタイミング許容範囲 (ミリ秒)
-        requiredHomeRuns: 3 // クリアに必要なホームラン数
+        requiredHomeRuns: 3, // クリアに必要なホームラン数
+        hitDistance: 50 // ミート判定の距離（小さいほど厳しい）
     };
 
     // ゲーム変数
@@ -30,8 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isGameActive = false;
     let isBallInPlay = false;  // ボールが投げられているかどうか
     let isBallVisible = false; // ボールが見えるかどうか
-    let isSwinging = false;    // スイング中かどうか
     let ballPosition = { x: 0, y: 0 }; // ボールの現在位置
+    let swingCount = 0;        // スイング回数のカウンター
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
@@ -41,24 +42,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // スタートボタンのイベントリスナー
     startButton.addEventListener('click', startGame);
 
-    // ***修正1: ゲームフィールド全体のマウス移動を追跡***
+    // ゲームフィールド全体のマウス移動を追跡
     gameField.addEventListener('mousemove', (e) => {
         if (isGameActive) {
             // マウス位置にバットを移動
             const relativeX = e.clientX - gameField.getBoundingClientRect().left;
             
-            // バットの位置を更新 (スイング中でなければ)
-            if (!isSwinging) {
-                batter.style.left = `${relativeX}px`;
-                batter.style.bottom = '50px';
-                batter.style.transform = 'translateX(-50%)';
-            }
+            // バットの位置を更新
+            batter.style.left = `${relativeX}px`;
+            batter.style.bottom = '50px';
+            batter.style.transform = 'translateX(-50%)';
         }
     });
 
-    // ***修正2: ゲームフィールド全体をクリック可能に、いつでもスイング可能***
+    // ゲームフィールド全体をクリック可能に、連打も可能
     gameField.addEventListener('click', (e) => {
-        if (isGameActive && !isSwinging) {
+        if (isGameActive) {
             swing(e);
         }
     });
@@ -72,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         homeRunCount = 0;
         isGameActive = true;
         isBallInPlay = false;
+        swingCount = 0;
         updateUI();
 
         startButton.textContent = 'ゲーム中...';
@@ -183,12 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 400);
     }
 
-    // ***修正3: スイング関数の改良 - いつでもスイング可能に***
+    // スイング関数 - 連打可能に修正
     function swing(e) {
-        if (isSwinging || !isGameActive) return;
+        // スイングカウントを増やす
+        swingCount++;
         
-        isSwinging = true;
-
         // クリック位置にバットを移動
         const fieldRect = gameField.getBoundingClientRect();
         const clickX = e.clientX - fieldRect.left;
@@ -197,10 +196,25 @@ document.addEventListener('DOMContentLoaded', () => {
         batter.style.left = `${clickX}px`;
         
         // スイングアニメーション
-        batter.classList.add('swing');
+        // 新しくバット要素をクローンして追加することで連続スイングを可能に
+        const newBatter = batter.cloneNode(true);
+        newBatter.id = `batter-swing-${swingCount}`;
+        newBatter.classList.add('swing');
+        newBatter.style.left = `${clickX}px`;
+        newBatter.style.bottom = '50px';
+        
+        // 元のバッターを一時的に非表示
+        batter.style.visibility = 'hidden';
+        
+        // クローンしたバッターを追加
+        gameField.appendChild(newBatter);
+        
+        // スイングアニメーション後に削除
         setTimeout(() => {
-            batter.classList.remove('swing');
-            isSwinging = false;
+            if (newBatter.parentNode === gameField) {
+                gameField.removeChild(newBatter);
+                batter.style.visibility = 'visible';
+            }
         }, 300);
 
         // ボールが投げられていない場合はスイングのみ
@@ -210,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // ボールがプレイ中の場合、ヒット判定
-        isBallInPlay = false;
         
         // バットの位置（クリック位置）
         const batterPos = {
@@ -232,8 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // ヒットエフェクトをボールの位置に表示
         createHitEffect(ballCenterX, ballCenterY);
         
-        // ***修正4: 当たり判定の距離を大きくして当てやすく***
-        if (distance < 80) { // 距離を80pxに拡大
+        // ミート判定をより厳しく設定
+        if (distance < settings.hitDistance) { // 距離を50pxに設定（より厳しい）
+            // ボールプレイを終了
+            isBallInPlay = false;
+            
             // ホームラン
             homeRunCount++;
             ballsLeft--;
@@ -255,14 +271,16 @@ document.addEventListener('DOMContentLoaded', () => {
             animateHomeRun(homeRunDistance);
                 
             resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
-        } else {
+        } else if (distance < 100) { // 近くにはあるがミートしていない
             // ファール
+            isBallInPlay = false;
             ballsLeft--;
+            
             const scoreboard = document.querySelector('.scoreboard-display');
             if (scoreboard) {
                 scoreboard.textContent = 'FOUL!';
             }
-            resultMessageElement.textContent = '空振り！';
+            resultMessageElement.textContent = 'ファール！';
             
             // ボールを通過させる
             ball.style.transition = 'all 0.4s ease-in';
@@ -274,6 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 isBallVisible = false;
                 throwBall();
             }, 1200);
+        } else {
+            // 空振り（ボールに全く近づいていない場合）
+            // ボールはそのまま進む
+            resultMessageElement.textContent = '空振り！';
         }
 
         updateUI();
