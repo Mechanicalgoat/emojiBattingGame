@@ -28,7 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let ballsLeft = 10;
     let homeRunCount = 0;
     let isGameActive = false;
-    let canSwing = false;
+    let isBallInPlay = false;  // ボールが投げられているかどうか
+    let isBallVisible = false; // ボールが見えるかどうか
+    let isSwinging = false;    // スイング中かどうか
+    let ballPosition = { x: 0, y: 0 }; // ボールの現在位置
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
@@ -44,16 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // マウス位置にバットを移動
             const relativeX = e.clientX - gameField.getBoundingClientRect().left;
             
-            // バットの位置を更新
-            batter.style.left = `${relativeX}px`;
-            batter.style.bottom = '50px';
-            batter.style.transform = 'translateX(-50%)';
+            // バットの位置を更新 (スイング中でなければ)
+            if (!isSwinging) {
+                batter.style.left = `${relativeX}px`;
+                batter.style.bottom = '50px';
+                batter.style.transform = 'translateX(-50%)';
+            }
         }
     });
 
-    // ***修正2: ゲームフィールド全体をクリック可能に***
+    // ***修正2: ゲームフィールド全体をクリック可能に、いつでもスイング可能***
     gameField.addEventListener('click', (e) => {
-        if (isGameActive && canSwing) {
+        if (isGameActive && !isSwinging) {
             swing(e);
         }
     });
@@ -66,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ballsLeft = 10;
         homeRunCount = 0;
         isGameActive = true;
+        isBallInPlay = false;
         updateUI();
 
         startButton.textContent = 'ゲーム中...';
@@ -104,6 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ball.style.visibility = 'visible';
         ball.style.transition = 'none';
         
+        // ボール状態を更新
+        isBallInPlay = true;
+        isBallVisible = true;
+        
         // 飛距離メーターを非表示
         if (distanceMeter) distanceMeter.style.display = 'none';
         
@@ -133,13 +143,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 ball.style.left = `${targetX}px`;
                 ball.style.bottom = `${targetY}px`;
                 
-                canSwing = true;
+                // ボールの現在位置を継続的に更新するアニメーションフレーム
+                function updateBallPosition() {
+                    if (isBallVisible) {
+                        const ballRect = ball.getBoundingClientRect();
+                        const fieldRect = gameField.getBoundingClientRect();
+                        
+                        ballPosition.x = ballRect.left + ballRect.width/2 - fieldRect.left;
+                        ballPosition.y = fieldRect.bottom - (ballRect.top + ballRect.height/2);
+                        
+                        requestAnimationFrame(updateBallPosition);
+                    }
+                }
+                updateBallPosition();
                 
                 // スイング待機時間
                 setTimeout(() => {
-                    if (canSwing) {
+                    if (isBallInPlay && isBallVisible) {
                         // 見逃した場合
-                        canSwing = false;
+                        isBallInPlay = false;
                         ballsLeft--;
                         updateUI();
                         
@@ -147,19 +169,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         ball.style.transition = 'all 0.4s ease-in';
                         ball.style.bottom = '-50px';
                         
+                        // 結果表示
+                        resultMessageElement.textContent = '見逃し！';
+                        
                         // 次の投球
-                        setTimeout(throwBall, 1000);
+                        setTimeout(() => {
+                            isBallVisible = false;
+                            throwBall();
+                        }, 1000);
                     }
                 }, settings.hitWindow);
             }, 300);
         }, 400);
     }
 
-    // ***修正3: スイング関数の改良 - ボールとバットの衝突判定の改善***
+    // ***修正3: スイング関数の改良 - いつでもスイング可能に***
     function swing(e) {
-        if (!canSwing) return;
+        if (isSwinging || !isGameActive) return;
         
-        canSwing = false;
+        isSwinging = true;
 
         // クリック位置にバットを移動
         const fieldRect = gameField.getBoundingClientRect();
@@ -172,18 +200,17 @@ document.addEventListener('DOMContentLoaded', () => {
         batter.classList.add('swing');
         setTimeout(() => {
             batter.classList.remove('swing');
+            isSwinging = false;
         }, 300);
 
-        // ボールの位置取得
-        const ballRect = ball.getBoundingClientRect();
-        const ballCenterX = ballRect.left + ballRect.width/2;
-        const ballCenterY = ballRect.top + ballRect.height/2;
+        // ボールが投げられていない場合はスイングのみ
+        if (!isBallInPlay || !isBallVisible) {
+            resultMessageElement.textContent = 'まだボールがありません！';
+            return;
+        }
         
-        // ボールの位置（ゲームフィールド内の相対座標）
-        const ballPos = {
-            x: ballCenterX - fieldRect.left,
-            y: fieldRect.bottom - ballCenterY
-        };
+        // ボールがプレイ中の場合、ヒット判定
+        isBallInPlay = false;
         
         // バットの位置（クリック位置）
         const batterPos = {
@@ -193,9 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // バットとボールの距離を計算
         const distance = Math.sqrt(
-            Math.pow(ballPos.x - batterPos.x, 2) + 
-            Math.pow(ballPos.y - batterPos.y, 2)
+            Math.pow(ballPosition.x - batterPos.x, 2) + 
+            Math.pow(ballPosition.y - batterPos.y, 2)
         );
+        
+        // ボールの現在位置を取得（表示用）
+        const ballRect = ball.getBoundingClientRect();
+        const ballCenterX = ballRect.left + ballRect.width/2;
+        const ballCenterY = ballRect.top + ballRect.height/2;
         
         // ヒットエフェクトをボールの位置に表示
         createHitEffect(ballCenterX, ballCenterY);
@@ -234,11 +266,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // ボールを通過させる
             ball.style.transition = 'all 0.4s ease-in';
-            ball.style.left = `${ballPos.x + 100}px`;
+            ball.style.left = `${ballPosition.x + 100}px`;
             ball.style.bottom = '-50px';
             
             // 次の投球
-            setTimeout(throwBall, 1200);
+            setTimeout(() => {
+                isBallVisible = false;
+                throwBall();
+            }, 1200);
         }
 
         updateUI();
@@ -262,6 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1.5秒後にホームラン表示
         setTimeout(() => {
             ball.style.visibility = 'hidden';
+            isBallVisible = false;
             
             // ランディング地点の計算
             const landingX = 125 + Math.sin(angleRad) * normalizedDistance * 100;
@@ -333,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ゲーム終了処理
     function endGame() {
         isGameActive = false;
+        isBallInPlay = false;
+        isBallVisible = false;
         startButton.disabled = false;
         startButton.textContent = 'もう一度プレイ';
         
