@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ballSpeedMin: 1500, // ボールの最低速度 (ミリ秒) - 大きいほど遅い
         ballSpeedMax: 2500, // ボールの最高速度 (ミリ秒) - 大きいほど遅い
         strikeZoneSize: 1.0, // ストライクゾーンの相対サイズ
-        hitDistance: 50, // ミート判定の距離（小さいほど厳しい）
+        hitDistance: 60, // ミート判定の距離（小さいほど厳しい）
         requiredHomeRuns: 3 // クリアに必要なホームラン数
     };
 
@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let batterPosition = { x: 0, y: 50 }; // バッターの位置
     let batterMovableRange = { min: 0, max: 0 }; // バッターの可動範囲
     let currentBallSpeed = 0;  // 現在のボールの速度
+    let hasSwungAtBall = false; // このボールに対してスイングしたかどうか
+    let ballExitedScreen = false; // ボールが画面外に出たかどうか
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
@@ -102,6 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isBallInPlay = false;
         lastSwingTime = 0;
         swingEffects = [];
+        hasSwungAtBall = false;
+        ballExitedScreen = false;
         
         // バッターの可動範囲を設定（フィールド幅の10%〜90%）
         batterMovableRange.min = fieldWidth * 0.1;
@@ -141,7 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // ボールを初期位置に設定
+        // 変数をリセット
+        hasSwungAtBall = false;
+        ballExitedScreen = false;
+
+        // ボールを初期位置に設定 (投手の位置)
         ball.style.left = '50%';
         ball.style.bottom = '250px';
         ball.style.transform = 'translate(-50%, -50%) scale(0.8)';
@@ -161,8 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // バッターの可動範囲内のランダムな位置を計算
         const targetX = batterMovableRange.min + Math.random() * (batterMovableRange.max - batterMovableRange.min);
         
-        // Y座標はバッターの高さに近い位置
-        const targetY = 50 + Math.random() * 30;
+        // Y座標はバッターの高さに固定
+        const targetY = 50; // バッターと同じ高さ
         
         // ランダムなボールの速度を設定
         currentBallSpeed = settings.ballSpeedMin + Math.random() * (settings.ballSpeedMax - settings.ballSpeedMin);
@@ -175,7 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pitcher.textContent = '🧍';
             
             setTimeout(() => {
-                // ボールを投げる - シンプルなアニメーション（速度が変化）
+                // ボールを投げる - 投手からバッターを通り抜けて画面外へ
+                // まずはバッターの位置まで
                 ball.style.transition = `all ${currentBallSpeed/1000}s ease-out`;
                 ball.style.left = `${targetX}px`;
                 ball.style.bottom = `${targetY}px`;
@@ -186,24 +195,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         const ballRect = ball.getBoundingClientRect();
                         const fieldRect = gameField.getBoundingClientRect();
                         
+                        // ボールの位置を更新
                         ballPosition.x = ballRect.left + ballRect.width/2 - fieldRect.left;
                         ballPosition.y = fieldRect.bottom - (ballRect.top + ballRect.height/2);
                         
-                        requestAnimationFrame(updateBallPosition);
-                    }
-                }
-                updateBallPosition();
-                
-                // ボールがバットの位置まで到達した後、自動的に下に落とす
-                setTimeout(() => {
-                    if (isBallInPlay && isBallVisible) {
-                        ball.style.transition = 'all 0.5s ease-in';
-                        ball.style.bottom = '-50px';
-                        
-                        // ボールが画面外に消えたら次の投球
-                        setTimeout(() => {
-                            if (isBallInPlay) {
-                                // 見逃した場合
+                        // ボールが画面外に出たかチェック
+                        if (ballPosition.y < -20) {
+                            ballExitedScreen = true;
+                            
+                            // ボールが画面外に出て、スイングしなかった場合は見逃し
+                            if (!hasSwungAtBall && isBallInPlay) {
                                 isBallInPlay = false;
                                 ballsLeft--;
                                 updateUI();
@@ -217,7 +218,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                     throwBall();
                                 }, 500);
                             }
-                        }, 500);
+                        }
+                        
+                        requestAnimationFrame(updateBallPosition);
+                    }
+                }
+                updateBallPosition();
+                
+                // ボールが画面下に抜けるアニメーション
+                setTimeout(() => {
+                    if (isBallVisible && isBallInPlay) {
+                        ball.style.transition = 'all 0.5s linear';
+                        ball.style.bottom = '-50px';
                     }
                 }, currentBallSpeed);
             }, 200);
@@ -230,6 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 前回のスイングから最低10ミリ秒経過していれば新しいスイングを許可
         if (now - lastSwingTime < 10) return;
         lastSwingTime = now;
+        
+        // スイングしたことを記録
+        hasSwungAtBall = true;
         
         // クリック位置を取得
         const fieldRect = gameField.getBoundingClientRect();
@@ -265,6 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // ボールが画面外に出ていたら空振り
+        if (ballExitedScreen) {
+            resultMessageElement.textContent = '空振り！';
+            return;
+        }
+        
         // バットとボールの距離を計算
         const distance = Math.sqrt(
             Math.pow(ballPosition.x - batterPosition.x, 2) + 
@@ -276,14 +297,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const ballCenterX = ballRect.left + ballRect.width/2;
         const ballCenterY = ballRect.top + ballRect.height/2;
         
-        // バットの適切な高さにボールがあるか確認（バッターの高さ±40px）
-        const isAtRightHeight = Math.abs(ballPosition.y - 50) <= 40;
+        // バットの高さにボールがあるか確認（バッターの高さ±20px）
+        const isAtRightHeight = Math.abs(ballPosition.y - 50) <= 20;
         
         // ヒットエフェクトをボールの位置に表示
         createHitEffect(ballCenterX, ballCenterY);
         
         // ミート判定
-        if (distance < settings.hitDistance && isAtRightHeight) { // 距離を50pxに設定（より厳しい）
+        if (distance < settings.hitDistance && isAtRightHeight) {
             // ボールプレイを終了
             isBallInPlay = false;
             
@@ -308,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             animateHomeRun(homeRunDistance);
                 
             resultMessageElement.textContent = `ホームラン！ ${homeRunDistance}m飛んだ！`;
-        } else if (distance < 100 && isAtRightHeight) { // 近くにはあるがミートしていない
+        } else if (distance < 100 && isAtRightHeight) {
             // ファール
             isBallInPlay = false;
             ballsLeft--;
@@ -330,9 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 throwBall();
             }, 1200);
         } else {
-            // 空振り（ボールに全く近づいていない場合）
-            // ボールはそのまま進む
-            resultMessageElement.textContent = '空振り！';
+            // 空振りではなく、スイングだけを表示
+            // ボールがバットに当たらなかった場合でも空振りとは表示しない
+            resultMessageElement.textContent = 'スイング！';
         }
 
         updateUI();
@@ -362,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const landingX = 125 + Math.sin(angleRad) * normalizedDistance * 100;
             const landingY = 50 + normalizedDistance * 150;
             
-            // 俯瞰図表示（3秒で自動的に閉じる）
+            // 俯瞰図表示
             showFieldOverview(distance, landingX, landingY);
         }, 1500);
     }
