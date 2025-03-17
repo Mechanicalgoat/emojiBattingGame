@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSwingTime = 0;     // 最後のスイング時間
     let swingEffects = [];     // スイングエフェクトの配列
     let batterPosition = { x: 0, y: 50 }; // バッターの位置
+    let batterMovableRange = { min: 0, max: 0 }; // バッターの可動範囲
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
@@ -71,13 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const fieldRect = gameField.getBoundingClientRect();
             const relativeX = e.clientX - fieldRect.left;
             
-            // バットの位置を更新
-            batter.style.left = `${relativeX}px`;
+            // バットの位置を更新 (可動範囲内に制限)
+            const clampedX = Math.max(batterMovableRange.min, Math.min(batterMovableRange.max, relativeX));
+            batter.style.left = `${clampedX}px`;
             batter.style.bottom = '50px';
             batter.style.transform = 'translateX(-50%)';
             
             // バッターの位置を記録
-            batterPosition.x = relativeX;
+            batterPosition.x = clampedX;
         }
     });
 
@@ -99,6 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isBallInPlay = false;
         lastSwingTime = 0;
         swingEffects = [];
+        
+        // バッターの可動範囲を設定（フィールド幅の10%〜90%）
+        batterMovableRange.min = fieldWidth * 0.1;
+        batterMovableRange.max = fieldWidth * 0.9;
+        
         updateUI();
 
         startButton.textContent = 'ゲーム中...';
@@ -150,13 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // ピッチャーのモーション
         pitcher.textContent = '🤾';
         
-        // ゲームフィールド全体の範囲内でランダムな位置を計算
-        const fieldRect = gameField.getBoundingClientRect();
-        
-        // フィールド幅の15%〜85%の範囲でランダムな位置を選択
-        const minX = fieldWidth * 0.15;
-        const maxX = fieldWidth * 0.85;
-        const targetX = minX + Math.random() * (maxX - minX);
+        // バッターの可動範囲内のランダムな位置を計算
+        // 可動範囲と同じ範囲にボールを投げる
+        const targetX = batterMovableRange.min + Math.random() * (batterMovableRange.max - batterMovableRange.min);
         
         // Y座標はバッターの高さに近い位置
         const targetY = 50 + Math.random() * 30;
@@ -193,12 +196,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         ballsLeft--;
                         updateUI();
                         
+                        // ボールがバッターの可動範囲内にあるか確認
+                        const isInBatterRange = 
+                            ballPosition.x >= batterMovableRange.min && 
+                            ballPosition.x <= batterMovableRange.max;
+                        
                         // ボールを通過させる
                         ball.style.transition = 'all 0.4s ease-in';
                         ball.style.bottom = '-50px';
                         
                         // 結果表示
-                        resultMessageElement.textContent = '見逃し！';
+                        if (isInBatterRange) {
+                            resultMessageElement.textContent = '見逃し！';
+                        } else {
+                            resultMessageElement.textContent = 'ボール！（打てる範囲外）';
+                        }
                         
                         // 次の投球
                         setTimeout(() => {
@@ -222,9 +234,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const fieldRect = gameField.getBoundingClientRect();
         const clickX = e.clientX - fieldRect.left;
         
+        // バットの可動範囲内に制限
+        const clampedX = Math.max(batterMovableRange.min, Math.min(batterMovableRange.max, clickX));
+        
         // バットの移動（クリック位置に移動）
-        batter.style.left = `${clickX}px`;
-        batterPosition.x = clickX;
+        batter.style.left = `${clampedX}px`;
+        batterPosition.x = clampedX;
         
         // スイングエフェクトを作成 - 根本から振る
         const swingEffect = document.createElement('div');
