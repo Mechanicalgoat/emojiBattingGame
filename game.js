@@ -32,12 +32,37 @@ document.addEventListener('DOMContentLoaded', () => {
     let isBallInPlay = false;  // ボールが投げられているかどうか
     let isBallVisible = false; // ボールが見えるかどうか
     let ballPosition = { x: 0, y: 0 }; // ボールの現在位置
-    let swingCount = 0;        // スイング回数のカウンター
+    let lastSwingTime = 0;     // 最後のスイング時間
+    let swingEffects = [];     // スイングエフェクトの配列
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
     const fieldWidth = fieldRect.width;
     const fieldHeight = fieldRect.height;
+
+    // カスタムCSSをhead内に追加
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        @keyframes quickSwing {
+            0% { transform: translateX(-50%) rotate(-30deg); }
+            50% { transform: translateX(-50%) rotate(30deg); }
+            100% { transform: translateX(-50%) rotate(0deg); }
+        }
+        
+        .quick-swing {
+            animation: quickSwing 0.15s ease-out forwards;
+        }
+        
+        .swing-effect {
+            position: absolute;
+            font-size: 40px;
+            z-index: 10;
+            pointer-events: none;
+            transform-origin: bottom center;
+            animation: quickSwing 0.15s ease-out forwards;
+        }
+    `;
+    document.head.appendChild(styleElement);
 
     // スタートボタンのイベントリスナー
     startButton.addEventListener('click', startGame);
@@ -71,7 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
         homeRunCount = 0;
         isGameActive = true;
         isBallInPlay = false;
-        swingCount = 0;
+        lastSwingTime = 0;
+        swingEffects = [];
         updateUI();
 
         startButton.textContent = 'ゲーム中...';
@@ -183,47 +209,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 400);
     }
 
-    // スイング関数 - 連打可能に修正
+    // スイング関数 - 超連打可能に修正
     function swing(e) {
-        // スイングカウントを増やす
-        swingCount++;
+        const now = Date.now();
+        // 前回のスイングから最低10ミリ秒経過していれば新しいスイングを許可
+        if (now - lastSwingTime < 10) return;
+        lastSwingTime = now;
         
         // クリック位置にバットを移動
         const fieldRect = gameField.getBoundingClientRect();
         const clickX = e.clientX - fieldRect.left;
         
-        // クリック位置にバットを移動
+        // バットの位置を更新
         batter.style.left = `${clickX}px`;
         
-        // スイングアニメーション
-        // 新しくバット要素をクローンして追加することで連続スイングを可能に
-        const newBatter = batter.cloneNode(true);
-        newBatter.id = `batter-swing-${swingCount}`;
-        newBatter.classList.add('swing');
-        newBatter.style.left = `${clickX}px`;
-        newBatter.style.bottom = '50px';
+        // スイングエフェクトを作成
+        const swingEffect = document.createElement('div');
+        swingEffect.className = 'swing-effect';
+        swingEffect.textContent = '🏏';
+        swingEffect.style.left = `${clickX}px`;
+        swingEffect.style.bottom = '50px';
+        gameField.appendChild(swingEffect);
+        swingEffects.push(swingEffect);
         
-        // 元のバッターを一時的に非表示
-        batter.style.visibility = 'hidden';
-        
-        // クローンしたバッターを追加
-        gameField.appendChild(newBatter);
-        
-        // スイングアニメーション後に削除
+        // スイングエフェクトを一定時間後に削除
         setTimeout(() => {
-            if (newBatter.parentNode === gameField) {
-                gameField.removeChild(newBatter);
-                batter.style.visibility = 'visible';
+            if (swingEffect.parentNode === gameField) {
+                gameField.removeChild(swingEffect);
+                swingEffects = swingEffects.filter(effect => effect !== swingEffect);
             }
-        }, 300);
+        }, 150);
 
         // ボールが投げられていない場合はスイングのみ
         if (!isBallInPlay || !isBallVisible) {
             resultMessageElement.textContent = 'まだボールがありません！';
             return;
         }
-        
-        // ボールがプレイ中の場合、ヒット判定
         
         // バットの位置（クリック位置）
         const batterPos = {
@@ -393,6 +414,15 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         isBallInPlay = false;
         isBallVisible = false;
+        
+        // 残っているスイングエフェクトをすべて削除
+        swingEffects.forEach(effect => {
+            if (effect.parentNode === gameField) {
+                gameField.removeChild(effect);
+            }
+        });
+        swingEffects = [];
+        
         startButton.disabled = false;
         startButton.textContent = 'もう一度プレイ';
         
@@ -410,6 +440,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    // キーボード入力でもスイングできるようにする
+    document.addEventListener('keydown', (e) => {
+        if (isGameActive && (e.code === 'Space' || e.code === 'Enter')) {
+            // 現在のバットの位置を取得して、その位置でスイング
+            const batterRect = batter.getBoundingClientRect();
+            const fieldRect = gameField.getBoundingClientRect();
+            const centerX = batterRect.left + batterRect.width/2 - fieldRect.left;
+            
+            const mockEvent = {
+                clientX: centerX + fieldRect.left
+            };
+            swing(mockEvent);
+        }
+    });
 
     // 初期UI更新
     updateUI();
