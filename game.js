@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let ballPosition = { x: 0, y: 0 }; // ボールの現在位置
     let lastSwingTime = 0;     // 最後のスイング時間
     let swingEffects = [];     // スイングエフェクトの配列
+    let batterPosition = { x: 0, y: 50 }; // バッターの位置
 
     // フィールドのサイズを取得
     const fieldRect = gameField.getBoundingClientRect();
@@ -43,14 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // カスタムCSSをhead内に追加
     const styleElement = document.createElement('style');
     styleElement.textContent = `
-        @keyframes quickSwing {
-            0% { transform: translateX(-50%) rotate(-30deg); }
-            50% { transform: translateX(-50%) rotate(30deg); }
-            100% { transform: translateX(-50%) rotate(0deg); }
-        }
-        
-        .quick-swing {
-            animation: quickSwing 0.15s ease-out forwards;
+        @keyframes swingFromBase {
+            0% { transform: translateX(-10px) rotate(-45deg); transform-origin: bottom right; }
+            40% { transform: translateX(0px) rotate(45deg); transform-origin: bottom right; }
+            100% { transform: translateX(0px) rotate(0deg); transform-origin: bottom right; }
         }
         
         .swing-effect {
@@ -58,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
             font-size: 40px;
             z-index: 10;
             pointer-events: none;
-            transform-origin: bottom center;
-            animation: quickSwing 0.15s ease-out forwards;
+            transform-origin: bottom right;
+            animation: swingFromBase 0.15s ease-out forwards;
         }
     `;
     document.head.appendChild(styleElement);
@@ -71,17 +68,21 @@ document.addEventListener('DOMContentLoaded', () => {
     gameField.addEventListener('mousemove', (e) => {
         if (isGameActive) {
             // マウス位置にバットを移動
-            const relativeX = e.clientX - gameField.getBoundingClientRect().left;
+            const fieldRect = gameField.getBoundingClientRect();
+            const relativeX = e.clientX - fieldRect.left;
             
             // バットの位置を更新
             batter.style.left = `${relativeX}px`;
             batter.style.bottom = '50px';
             batter.style.transform = 'translateX(-50%)';
+            
+            // バッターの位置を記録
+            batterPosition.x = relativeX;
         }
     });
 
-    // ゲームフィールド全体をクリック可能に、連打も可能
-    gameField.addEventListener('click', (e) => {
+    // ストライクゾーン内でのみクリックを検知
+    strikeZone.addEventListener('click', (e) => {
         if (isGameActive) {
             swing(e);
         }
@@ -117,6 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
         batter.style.left = '50%';
         batter.style.transform = 'translateX(-50%)';
         batter.style.transition = 'none';
+        
+        // バッターポジションを更新
+        batterPosition.x = fieldWidth / 2;
 
         // 最初の投球を開始
         throwBall();
@@ -209,25 +213,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 400);
     }
 
-    // スイング関数 - 超連打可能に修正
+    // スイング関数 - バットを根本から振るように修正
     function swing(e) {
         const now = Date.now();
         // 前回のスイングから最低10ミリ秒経過していれば新しいスイングを許可
         if (now - lastSwingTime < 10) return;
         lastSwingTime = now;
         
-        // クリック位置にバットを移動
+        // ストライクゾーンの位置を取得
+        const strikeZoneRect = strikeZone.getBoundingClientRect();
         const fieldRect = gameField.getBoundingClientRect();
-        const clickX = e.clientX - fieldRect.left;
         
-        // バットの位置を更新
-        batter.style.left = `${clickX}px`;
-        
-        // スイングエフェクトを作成
+        // スイングエフェクトを作成 - 根本から振る
         const swingEffect = document.createElement('div');
         swingEffect.className = 'swing-effect';
         swingEffect.textContent = '🏏';
-        swingEffect.style.left = `${clickX}px`;
+        swingEffect.style.left = `${batterPosition.x}px`;
         swingEffect.style.bottom = '50px';
         gameField.appendChild(swingEffect);
         swingEffects.push(swingEffect);
@@ -246,16 +247,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // バットの位置（クリック位置）
-        const batterPos = {
-            x: clickX,
-            y: 50
-        };
+        // ボールがストライクゾーン内にあるか確認
+        const ballInsideStrikeZone = 
+            ballPosition.x >= strikeZoneRect.left - fieldRect.left &&
+            ballPosition.x <= strikeZoneRect.right - fieldRect.left &&
+            ballPosition.y >= fieldRect.bottom - strikeZoneRect.bottom &&
+            ballPosition.y <= fieldRect.bottom - strikeZoneRect.top;
+        
+        // ボールがストライクゾーン外の場合はスイングのみ
+        if (!ballInsideStrikeZone) {
+            resultMessageElement.textContent = 'ボールがストライクゾーンにありません！';
+            return;
+        }
         
         // バットとボールの距離を計算
         const distance = Math.sqrt(
-            Math.pow(ballPosition.x - batterPos.x, 2) + 
-            Math.pow(ballPosition.y - batterPos.y, 2)
+            Math.pow(ballPosition.x - batterPosition.x, 2) + 
+            Math.pow(ballPosition.y - batterPosition.y, 2)
         );
         
         // ボールの現在位置を取得（表示用）
@@ -444,13 +452,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // キーボード入力でもスイングできるようにする
     document.addEventListener('keydown', (e) => {
         if (isGameActive && (e.code === 'Space' || e.code === 'Enter')) {
-            // 現在のバットの位置を取得して、その位置でスイング
-            const batterRect = batter.getBoundingClientRect();
-            const fieldRect = gameField.getBoundingClientRect();
-            const centerX = batterRect.left + batterRect.width/2 - fieldRect.left;
-            
+            // バッターの現在位置でスイング
             const mockEvent = {
-                clientX: centerX + fieldRect.left
+                clientX: batterPosition.x + gameField.getBoundingClientRect().left
             };
             swing(mockEvent);
         }
