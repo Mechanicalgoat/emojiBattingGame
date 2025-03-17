@@ -81,8 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ストライクゾーン内でのみクリックを検知
-    strikeZone.addEventListener('click', (e) => {
+    // ゲームフィールド全体をクリック可能に
+    gameField.addEventListener('click', (e) => {
         if (isGameActive) {
             swing(e);
         }
@@ -150,18 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // ピッチャーのモーション
         pitcher.textContent = '🤾';
         
-        // ストライクゾーン内のランダムな位置を計算
-        const zoneRect = strikeZone.getBoundingClientRect();
+        // ゲームフィールド全体の範囲内でランダムな位置を計算
         const fieldRect = gameField.getBoundingClientRect();
         
-        const zoneCenterX = zoneRect.left + zoneRect.width / 2 - fieldRect.left;
-        const zoneCenterY = fieldRect.bottom - zoneRect.top - zoneRect.height / 2;
+        // フィールド幅の15%〜85%の範囲でランダムな位置を選択
+        const minX = fieldWidth * 0.15;
+        const maxX = fieldWidth * 0.85;
+        const targetX = minX + Math.random() * (maxX - minX);
         
-        const randomOffsetX = (Math.random() - 0.5) * zoneRect.width * 0.8;
-        const randomOffsetY = (Math.random() - 0.5) * zoneRect.height * 0.8;
-        
-        const targetX = zoneCenterX + randomOffsetX;
-        const targetY = zoneCenterY + randomOffsetY;
+        // Y座標はバッターの高さに近い位置
+        const targetY = 50 + Math.random() * 30;
         
         setTimeout(() => {
             // ピッチャーの絵文字を戻す
@@ -220,9 +218,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (now - lastSwingTime < 10) return;
         lastSwingTime = now;
         
-        // ストライクゾーンの位置を取得
-        const strikeZoneRect = strikeZone.getBoundingClientRect();
+        // クリック位置を取得
         const fieldRect = gameField.getBoundingClientRect();
+        const clickX = e.clientX - fieldRect.left;
+        
+        // バットの移動（クリック位置に移動）
+        batter.style.left = `${clickX}px`;
+        batterPosition.x = clickX;
         
         // スイングエフェクトを作成 - 根本から振る
         const swingEffect = document.createElement('div');
@@ -244,19 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // ボールが投げられていない場合はスイングのみ
         if (!isBallInPlay || !isBallVisible) {
             resultMessageElement.textContent = 'まだボールがありません！';
-            return;
-        }
-        
-        // ボールがストライクゾーン内にあるか確認
-        const ballInsideStrikeZone = 
-            ballPosition.x >= strikeZoneRect.left - fieldRect.left &&
-            ballPosition.x <= strikeZoneRect.right - fieldRect.left &&
-            ballPosition.y >= fieldRect.bottom - strikeZoneRect.bottom &&
-            ballPosition.y <= fieldRect.bottom - strikeZoneRect.top;
-        
-        // ボールがストライクゾーン外の場合はスイングのみ
-        if (!ballInsideStrikeZone) {
-            resultMessageElement.textContent = 'ボールがストライクゾーンにありません！';
             return;
         }
         
